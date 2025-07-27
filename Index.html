@@ -1,0 +1,350 @@
+
+<!DOCTYPE html>
+
+<html dir="rtl" lang="fa">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>اپ انبارداری شخصی</title>
+<style>
+        body { font-family: Tahoma, sans-serif; padding: 20px; background: #f8f8f8; }
+        h2 { color: #2c3e50; }
+        input, button, select {
+            padding: 10px; margin: 5px 0; width: 100%;
+            border: 1px solid #ccc; border-radius: 5px;
+            font-size: 1em;
+        }
+        button { background: #3498db; color: white; cursor: pointer; }
+        button:hover { background: #2980b9; }
+        .section { margin-top: 30px; padding: 15px; background: #fff; border-radius: 8px; box-shadow: 0 0 5px rgba(0,0,0,0.1); }
+        .low-stock { color: red; font-weight: bold; }
+        table { width: 100%; border-collapse: collapse; margin-top: 15px; }
+        th, td { border: 1px solid #ccc; padding: 8px; text-align: center; }
+        th { background: #eee; }
+    </style>
+<link href="manifest.json" rel="manifest"/>
+<meta content="#3498db" name="theme-color"/>
+<meta content="yes" name="mobile-web-app-capable"/>
+<meta content="yes" name="apple-mobile-web-app-capable"/>
+
+<link href="https://cdn.jsdelivr.net/npm/persian-datepicker@1.2.0/dist/css/persian-datepicker.min.css" rel="stylesheet"/>
+<script src="https://cdn.jsdelivr.net/npm/jquery@3.6.4/dist/jquery.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/persian-date@1.1.0/dist/persian-date.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/persian-datepicker@1.2.0/dist/js/persian-datepicker.min.js"></script>
+</head>
+<body>
+
+<div class="section">
+<h3>جستجو بر اساس بازه تاریخی و کد کالا</h3>
+<label for="searchCode">کد کالا</label>
+<input id="searchCode" placeholder="مثلاً 101"/>
+<label for="fromDate">از تاریخ</label>
+<input id="fromDate" type="text"/>
+<label for="toDate">تا تاریخ</label>
+<input id="toDate" type="text"/>
+<button onclick="filterByDateRange()">جستجو</button>
+</div>
+<script>
+$(function() {
+    $("#fromDate").pDatepicker({ format: "YYYY/MM/DD" });
+    $("#toDate").pDatepicker({ format: "YYYY/MM/DD" });
+});
+
+function filterByDateRange() {
+    const code = document.getElementById("searchCode").value.trim();
+    const from = document.getElementById("fromDate").value.trim();
+    const to = document.getElementById("toDate").value.trim();
+    const today = new persianDate().format("YYYY/MM/DD");
+
+    const start = from || today;
+    const end = to || today;
+
+    const filteredIns = (JSON.parse(localStorage.getItem("ins") || "[]"))
+        .filter(e => (!code || e.code === code) && e.date >= start && e.date <= end);
+    const filteredOuts = (JSON.parse(localStorage.getItem("outs") || "[]"))
+        .filter(e => (!code || e.code === code) && e.date >= start && e.date <= end);
+
+    let html = "<h4>ورودی‌ها</h4><table><tr><th>تاریخ</th><th>کد</th><th>تعداد</th></tr>";
+    filteredIns.forEach(e => html += `<tr><td>${e.date}</td><td>${e.code}</td><td>${e.qty}</td></tr>`);
+    html += "</table><h4>خروجی‌ها</h4><table><tr><th>تاریخ</th><th>کد</th><th>تعداد</th></tr>";
+    filteredOuts.forEach(e => html += `<tr><td>${e.date}</td><td>${e.code}</td><td>${e.qty}</td></tr>`);
+    html += "</table>";
+    const reportDiv = document.createElement("div");
+    reportDiv.className = "section";
+    reportDiv.innerHTML = html;
+    document.body.appendChild(reportDiv);
+}
+</script>
+<h2>اپلیکیشن انبارداری شخصی</h2>
+<div class="section">
+<h3>ثبت / ویرایش کالا</h3>
+<input id="code" placeholder="کد کالا"/>
+<input id="retail" placeholder="قیمت خورده (تومان)" type="number"/>
+<input id="wholesale" placeholder="قیمت کیسه‌ای (تومان)" type="number"/>
+<input id="stock" placeholder="موجودی (کیسه)" type="number"/>
+<button onclick="saveItem()">ذخیره کالا</button>
+</div>
+<div class="section">
+<h3>ورود / خروج موجودی</h3>
+<input id="moveCode" placeholder="کد کالا"/>
+<select id="moveType">
+<option value="in">ورود</option>
+<option value="out">خروج</option>
+</select>
+<input id="moveAmount" placeholder="تعداد کیسه" type="number"/>
+<button onclick="moveStock()">ثبت ورود/خروج</button>
+</div>
+<div class="section">
+<h3>جستجو</h3>
+<input id="searchCode" oninput="searchItem()" placeholder="کد کالا را وارد کنید"/>
+<div id="searchResult"></div>
+</div>
+<div class="section">
+<h3>گزارش کلی انبار</h3>
+<button onclick="generateReport()">نمایش گزارش</button>
+<button onclick="downloadPDF()">دانلود PDF</button>
+<div id="report"></div>
+</div><div class="section">
+<h3>گزارش ورود / خروج بر اساس تاریخ</h3>
+<input id="filterDate" placeholder="تاریخ به فرمت ۱۴۰۳/۰۴/۲۵ وارد کنید"/>
+<button onclick="generateDateReport()">نمایش گزارش تاریخ خاص</button>
+<div id="dateReportResult"></div>
+</div>
+<div class="section">
+<h3>گزارش دقیق ورود / خروج در یک تاریخ</h3>
+<input id="logDate" placeholder="تاریخ به فرمت ۱۴۰۳/۰۴/۲۵"/>
+<button onclick="generateLogReport()">نمایش گزارش</button>
+<div id="logReportResult"></div>
+</div>
+<div class="section">
+<h3>پشتیبان‌گیری / بازیابی</h3>
+<button onclick="backupData()">دریافت فایل پشتیبان</button>
+<input onchange="restoreData(event)" type="file"/>
+</div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script>
+    const getToday = () => {
+        const d = new Date();
+        const ye = new Intl.DateTimeFormat('fa-IR-u-ca-persian', { year: 'numeric' }).format(d);
+        const mo = new Intl.DateTimeFormat('fa-IR-u-ca-persian', { month: '2-digit' }).format(d);
+        const da = new Intl.DateTimeFormat('fa-IR-u-ca-persian', { day: '2-digit' }).format(d);
+        return `${ye}/${mo}/${da}`;
+    };
+
+    function saveItem() {
+        const code = document.getElementById('code').value.trim();
+        const retail = document.getElementById('retail').value;
+        const wholesale = document.getElementById('wholesale').value;
+        const stock = parseInt(document.getElementById('stock').value);
+        const date = getToday();
+
+        if (!code) return alert("کد کالا را وارد کنید.");
+
+        const data = JSON.parse(localStorage.getItem('items') || '{}');
+        data[code] = { retail, wholesale, stock, date };
+        localStorage.setItem('items', JSON.stringify(data));
+
+    const logs = JSON.parse(localStorage.getItem('logs') || '[]');
+    logs.push({ code, type, amount, date: getToday() });
+    localStorage.setItem('logs', JSON.stringify(logs));
+
+
+        alert("اطلاعات ذخیره شد.");
+    }
+
+    function moveStock() {
+        const code = document.getElementById('moveCode').value.trim();
+        const type = document.getElementById('moveType').value;
+        const amount = parseInt(document.getElementById('moveAmount').value);
+        const data = JSON.parse(localStorage.getItem('items') || '{}');
+        const item = data[code];
+        if (!item) return alert("کالا یافت نشد.");
+
+        item.stock = type === 'in' ? item.stock + amount : item.stock - amount;
+        item.date = getToday();
+        localStorage.setItem('items', JSON.stringify(data));
+
+    const logs = JSON.parse(localStorage.getItem('logs') || '[]');
+    logs.push({ code, type, amount, date: getToday() });
+    localStorage.setItem('logs', JSON.stringify(logs));
+
+        alert("موجودی بروزرسانی شد.");
+    }
+
+    function searchItem() {
+        const code = document.getElementById('searchCode').value.trim();
+        const data = JSON.parse(localStorage.getItem('items') || '{}');
+        const item = data[code];
+        const res = document.getElementById('searchResult');
+        if (!item) return res.innerHTML = "کالا یافت نشد.";
+
+        res.innerHTML = `
+            <strong>کد:</strong> ${code}<br>
+            <strong>قیمت خورده:</strong> ${item.retail} تومان<br>
+            <strong>قیمت کیسه‌ای:</strong> ${item.wholesale} تومان<br>
+            <strong>موجودی:</strong> <span class="${item.stock <= 0 ? 'low-stock' : ''}">${item.stock} کیسه</span><br>
+            <strong>تاریخ:</strong> ${item.date}
+        `;
+    }
+
+    function generateReport() {
+        const data = JSON.parse(localStorage.getItem('items') || '{}');
+        let html = "<table><tr><th>کد</th><th>خورده</th><th>کیسه‌ای</th><th>موجودی</th><th>تاریخ</th></tr>";
+        for (let code in data) {
+            const item = data[code];
+            html += `<tr>
+                <td>${code}</td>
+                <td>${item.retail}</td>
+                <td>${item.wholesale}</td>
+                <td class="${item.stock <= 0 ? 'low-stock' : ''}">${item.stock}</td>
+                <td>${item.date}</td>
+            </tr>`;
+        }
+        html += "</table>";
+        document.getElementById("report").innerHTML = html;
+    }
+
+    // replaced below
+function downloadPDF_OLD() {
+        generateReport();
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF();
+        doc.html(document.getElementById("report"), {
+            callback: function (doc) {
+                doc.save("گزارش_انبار.pdf");
+            },
+            x: 10, y: 10
+        });
+    }
+
+    function backupData() {
+        const data = localStorage.getItem('items') || '{}';
+        const blob = new Blob([data], { type: "application/json" });
+        const link = document.createElement("a");
+        link.href = URL.createObjectURL(blob);
+        link.download = "backup.json";
+        link.click();
+    }
+
+    function restoreData(event) {
+        const file = event.target.files[0];
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            localStorage.setItem('items', e.target.result);
+            alert("اطلاعات بازیابی شد.");
+        }
+        reader.readAsText(file);
+    }
+
+
+
+function downloadPDF() {
+    generateReport();
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF();
+    doc.html(document.getElementById("report"), {
+        callback: function (doc) {
+            const blob = doc.output("blob");
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement("a");
+            link.href = url;
+            link.download = "گزارش_انبار.pdf";
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            URL.revokeObjectURL(url);
+        },
+        x: 10, y: 10
+    });
+}
+
+
+function generateDateReport() {
+    const selectedDate = document.getElementById('filterDate').value.trim();
+    if (!selectedDate) return alert("لطفاً تاریخ را وارد کنید (مثلاً ۱۴۰۳/۰۴/۲۵)");
+
+    const data = JSON.parse(localStorage.getItem('items') || '{}');
+    let html = "<table><tr><th>کد</th><th>نوع</th><th>مقدار</th><th>تاریخ</th></tr>";
+    for (let code in data) {
+        const item = data[code];
+        if (item.date === selectedDate) {
+            html += `<tr>
+                <td>${code}</td>
+                <td>موجودی</td>
+                <td>${item.stock}</td>
+                <td>${item.date}</td>
+            </tr>`;
+        }
+    }
+    html += "</table>";
+    document.getElementById("dateReportResult").innerHTML = html;
+}
+
+
+
+function generateLogReport() {
+    const selectedDate = document.getElementById('logDate').value.trim();
+    if (!selectedDate) return alert("لطفاً تاریخ را وارد کنید (مثلاً ۱۴۰۳/۰۴/۲۵)");
+
+    const logs = JSON.parse(localStorage.getItem('logs') || '[]');
+    const filtered = logs.filter(log => log.date === selectedDate);
+    if (filtered.length === 0) {
+        document.getElementById("logReportResult").innerHTML = "ورود یا خروجی در این تاریخ ثبت نشده است.";
+        return;
+    }
+
+    let html = "<table><tr><th>کد کالا</th><th>نوع</th><th>تعداد</th><th>تاریخ</th></tr>";
+    filtered.forEach(log => {
+        html += `<tr>
+            <td>${log.code}</td>
+            <td>${log.type === "in" ? "ورود" : "خروج"}</td>
+            <td>${log.amount}</td>
+            <td>${log.date}</td>
+        </tr>`;
+    });
+    html += "</table>";
+    document.getElementById("logReportResult").innerHTML = html;
+}
+</script>
+<script>
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('service-worker.js')
+    .then(() => console.log("Service Worker registered"));
+}
+</script>
+
+<script>
+    document.getElementById('filter-button').addEventListener('click', function() {
+        const startDate = document.getElementById('start-date').value;
+        const endDate = document.getElementById('end-date').value;
+
+        if (!startDate || !endDate) {
+            alert('لطفاً تاریخ‌ها را وارد کنید.');
+            return;
+        }
+
+        // Example data (replace this with your actual data fetching logic)
+        const reportData = [
+            { کالا: "کالا 1", موجودی: 50, ورودی: 20, خروجی: 10, تاریخ: "2023-07-01" },
+            { کالا: "کالا 2", موجودی: 30, ورودی: 10, خروجی: 5, تاریخ: "2023-07-02" }
+        ];
+
+        // Convert input dates to Date objects for comparison
+        const start = new Date(startDate);
+        const end = new Date(endDate);
+
+        // Filter data based on selected dates
+        const filteredData = reportData.filter(item => {
+            const itemDate = new Date(item.تاریخ);
+            return itemDate >= start && itemDate <= end;
+        });
+
+        // Display filtered data (for testing purposes, you can log it)
+        console.log(filteredData);
+
+        // Here you can update the table or display data on the page as needed
+    });
+</script>
+
+</body>
+</html>
